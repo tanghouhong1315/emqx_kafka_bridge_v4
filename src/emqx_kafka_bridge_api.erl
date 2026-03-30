@@ -98,8 +98,8 @@ swagger(_Bindings, _Params) ->
 
 swagger_ui(_Bindings, _Params) ->
     HtmlBin = swagger_ui_html(),
-    %% 直接返回 binary，让 minirest 处理
-    {200, HtmlBin}.
+    %% 使用 text 格式返回，minirest 不会转义 text
+    {200, text, HtmlBin}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
