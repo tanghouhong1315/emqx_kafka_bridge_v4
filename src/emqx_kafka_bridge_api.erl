@@ -2,6 +2,9 @@
 
 -include("emqx_kafka_bridge.hrl").
 
+%% 静态文件 handler
+-export([serve_static/2]).
+
 -rest_api(#{name => swagger,
             method => 'GET',
             path => "/swagger.json",
@@ -83,7 +86,12 @@ stop() ->
 %% ===================================================================
 
 http_handlers() ->
-    [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
+    %% 添加静态文件路由
+    StaticHandler = {emqx_kafka_bridge_api, serve_static, ["swagger-dist"]},
+    [
+        {"/kafka_bridge/swagger-dist/[...]", StaticHandler, []},
+        {"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}
+    ].
 
 %% ===================================================================
 %% Handler Functions
@@ -338,3 +346,31 @@ error_response(Code, Message) when is_integer(Code) ->
         message => MsgBin,
         data => #{}
     }}.
+
+%% ===================================================================
+%% 静态文件服务
+%% ===================================================================
+serve_static(Req, [SubDir]) ->
+    Path = cowboy_req:path(Req),
+    %% 去掉前缀 /kafka_bridge/swagger-dist/
+    <<"/kafka_bridge/swagger-dist/", Rest/binary>> = Path,
+    PrivDir = code:priv_dir(emqx_kafka_bridge_v4),
+    FilePath = filename:join([PrivDir, SubDir, binary_to_list(Rest)]),
+    case file:read_file(FilePath) of
+        {ok, Bin} ->
+            ContentType = content_type(filename:extension(FilePath)),
+            {200, #{<<"content-type">> => ContentType}, Bin};
+        {error, _} ->
+            {404, #{<<"content-type">> => <<"text/plain">>}, <<"Not found">>}
+    end.
+
+content_type(Ext) ->
+    case Ext of
+        <<".js">> -> <<"application/javascript">>;
+        <<".css">> -> <<"text/css">>;
+        <<".html">> -> <<"text/html">>;
+        <<".json">> -> <<"application/json">>;
+        <<".png">> -> <<"image/png">>;
+        <<".jpg">> -> <<"image/jpeg">>;
+        _ -> <<"application/octet-stream">>
+    end.
