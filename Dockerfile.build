@@ -50,7 +50,7 @@ RUN git clone --depth 1 --branch v4.4.19 https://github.com/emqx/emqx.git /emqx
 RUN cat > /emqx/lib-extra/plugins << 'PLUGINS_EOF'
 {erlang_plugins,
   [ {emqx_plugin_template, {git, "https://github.com/emqx/emqx-plugin-template", {tag, "4.3.0"}}},
-    {emqx_kafka_bridge_v4, {git, "https://github.com/tanghouhong1315/emqx_kafka_bridge_v4.git", {tag, "v1.0.0"}}}
+    {emqx_kafka_bridge_v4, {git, "https://github.com/tanghouhong1315/emqx_kafka_bridge_v4.git", {branch, "v1.0.0"}}}
   ]
 }.
 
