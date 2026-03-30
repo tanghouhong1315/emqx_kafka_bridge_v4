@@ -96,9 +96,8 @@ swagger(_Bindings, _Params) ->
     {ok, #{<<"content-type">> => <<"application/json">>}, JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
-    %% 使用 Swagger UI CDN，直接嵌入 swagger.json 内容，避免路径问题
+    %% 使用 Swagger UI CDN，直接嵌入 swagger.json 内容，并动态替换 servers 为当前访问地址
     JsonBin = swagger_json(),
-    %% 将 binary 转换为 string 以便嵌入到 JavaScript 中
     JsonStr = binary_to_list(JsonBin),
     Html = io_lib:format(
         <<"<!DOCTYPE html>
@@ -119,18 +118,20 @@ swagger_ui(_Bindings, _Params) ->
     window.onload = function() {
         const currentUrl = window.location.protocol + '//' + window.location.host + '/kafka_bridge';
         
-        // 直接使用嵌入的 swagger.json 内容
-        const spec = ~s;
+        // 嵌入 swagger.json 内容
+        let spec = ~s;
+        
+        // 动态替换 servers 为当前访问地址
+        spec.servers = [{
+            url: currentUrl,
+            description: \"当前访问地址\"
+        }];
         
         SwaggerUIBundle({
             spec: spec,
             dom_id: '#swagger-ui',
             presets: [SwaggerUIBundle.presets.apis],
-            layout: \"BaseLayout\",
-            servers: [{
-                url: currentUrl,
-                description: \"当前访问地址\"
-            }]
+            layout: \"BaseLayout\"
         });
     };
     </script>
