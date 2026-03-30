@@ -122,10 +122,7 @@ swagger_ui(_Bindings, _Params) ->
         let spec = ~s;
         
         // 动态替换 servers 为当前访问地址
-        spec.servers = [{
-            url: currentUrl,
-            description: \"当前访问地址\"
-        }];
+        spec.servers = [{ url: currentUrl }];
         
         SwaggerUIBundle({
             spec: spec,
