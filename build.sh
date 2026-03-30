@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-IMAGE_NAME="tanghouhong/emqx_kafka_bridge_v4:1.0.0-emqx4.4.19"
+IMAGE_NAME="tanghouhong/emqx_kafka_bridge_v4:1.0.1-emqx4.4.19"
 KAFKA_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-192.168.19.71:10003}"
 
 # 默认参数
