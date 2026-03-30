@@ -97,9 +97,9 @@ swagger(_Bindings, _Params) ->
     {200, #{<<"content-type">> => <<"application/json">>}, JsonMap}.
 
 swagger_ui(_Bindings, _Params) ->
-    {200, #{
-        <<"content-type">> => <<"text/html; charset=utf-8">>
-    }, swagger_ui_html()}.
+    HtmlBin = swagger_ui_html(),
+    %% 返回 map 格式的 headers，确保 binary 不被转义
+    {200, #{<<"content-type">> => <<"text/html; charset=utf-8">>}, HtmlBin}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
