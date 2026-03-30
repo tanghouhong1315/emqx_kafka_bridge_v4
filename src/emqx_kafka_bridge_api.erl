@@ -96,8 +96,12 @@ swagger(_Bindings, _Params) ->
     {ok, #{<<"content-type">> => <<"application/json">>}, JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
-    %% 使用 Swagger UI CDN，动态获取当前访问的 URL
-    Html = <<"<!DOCTYPE html>
+    %% 使用 Swagger UI CDN，直接嵌入 swagger.json 内容，避免路径问题
+    JsonBin = swagger_json(),
+    %% 将 binary 转换为 string 以便嵌入到 JavaScript 中
+    JsonStr = binary_to_list(JsonBin),
+    Html = io_lib:format(
+        <<"<!DOCTYPE html>
 <html>
 <head>
     <meta charset=\"UTF-8\">
@@ -113,28 +117,28 @@ swagger_ui(_Bindings, _Params) ->
     <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
     <script>
     window.onload = function() {
-        // 动态获取当前访问的协议、主机和端口
         const currentUrl = window.location.protocol + '//' + window.location.host + '/kafka_bridge';
         
+        // 直接使用嵌入的 swagger.json 内容
+        const spec = ~s;
+        
         SwaggerUIBundle({
-            url: '/kafka_bridge/swagger.json',
+            spec: spec,
             dom_id: '#swagger-ui',
             presets: [SwaggerUIBundle.presets.apis],
             layout: \"BaseLayout\",
-            // 动态设置 servers，使用当前访问的地址
-            spec: {
-                servers: [{
-                    url: currentUrl,
-                    description: \"当前访问地址\"
-                }]
-            }
+            servers: [{
+                url: currentUrl,
+                description: \"当前访问地址\"
+            }]
         });
     };
     </script>
 </body>
 </html>">>,
+        [JsonStr]),
     %% 返回 {ok, Headers, Body} 格式，绕过 minirest 的 json_encode
-    {ok, #{<<"content-type">> => <<"text/html; charset=utf-8">>}, Html}.
+    {ok, #{<<"content-type">> => <<"text/html; charset=utf-8">>}, iolist_to_binary(Html)}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
