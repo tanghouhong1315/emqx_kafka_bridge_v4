@@ -2,9 +2,6 @@
 
 -include("emqx_kafka_bridge.hrl").
 
-%% Cowboy handler for raw HTML (bypass minirest encoding)
--export([swagger_ui_handler/2, swagger_json_handler/2]).
-
 -rest_api(#{name => swagger,
             method => 'GET',
             path => "/swagger.json",
@@ -86,12 +83,7 @@ stop() ->
 %% ===================================================================
 
 http_handlers() ->
-    %% 使用原始 cowboy handler 来提供 Swagger UI（绕过 minirest 的编码处理）
-    [
-        {"/kafka_bridge/api-docs/swagger-ui", emqx_kafka_bridge_api, []},
-        {"/kafka_bridge/api-docs/swagger.json", emqx_kafka_bridge_api, []},
-        {"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}
-    ].
+    [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
 
 %% ===================================================================
 %% Handler Functions
@@ -346,39 +338,3 @@ error_response(Code, Message) when is_integer(Code) ->
         message => MsgBin,
         data => #{}
     }}.
-
-%% ===================================================================
-%% Raw Cowboy Handlers (bypass minirest encoding)
-%% ===================================================================
-
-swagger_ui_handler(Req, _Opts) ->
-    PrivDir = code:priv_dir(emqx_kafka_bridge_v4),
-    File = filename:join(PrivDir, "swagger-ui.html"),
-    case file:read_file(File) of
-        {ok, Bin} ->
-            Req2 = cowboy_req:reply(200, #{
-                <<"content-type">> => <<"text/html; charset=utf-8">>
-            }, Bin, Req),
-            {ok, Req2, undefined};
-        {error, _} ->
-            Req2 = cowboy_req:reply(404, #{
-                <<"content-type">> => <<"text/plain">>
-            }, <<"Not found">>, Req),
-            {ok, Req2, undefined}
-    end.
-
-swagger_json_handler(Req, _Opts) ->
-    PrivDir = code:priv_dir(emqx_kafka_bridge_v4),
-    File = filename:join(PrivDir, "swagger.json"),
-    case file:read_file(File) of
-        {ok, Bin} ->
-            Req2 = cowboy_req:reply(200, #{
-                <<"content-type">> => <<"application/json">>
-            }, Bin, Req),
-            {ok, Req2, undefined};
-        {error, _} ->
-            Req2 = cowboy_req:reply(404, #{
-                <<"content-type">> => <<"text/plain">>
-            }, <<"Not found">>, Req),
-            {ok, Req2, undefined}
-    end.
