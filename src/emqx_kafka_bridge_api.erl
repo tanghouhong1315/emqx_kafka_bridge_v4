@@ -98,8 +98,8 @@ swagger(_Bindings, _Params) ->
 
 swagger_ui(_Bindings, _Params) ->
     HtmlBin = swagger_ui_html(),
-    %% 返回 map 格式的 headers，确保 binary 不被转义
-    {200, #{<<"content-type">> => <<"text/html; charset=utf-8">>}, HtmlBin}.
+    %% 直接返回 binary，让 minirest 处理
+    {200, HtmlBin}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
