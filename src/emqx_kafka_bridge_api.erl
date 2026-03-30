@@ -96,7 +96,7 @@ swagger(_Bindings, _Params) ->
     {ok, #{<<"content-type">> => <<"application/json">>}, JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
-    %% 使用 Swagger UI CDN
+    %% 使用 Swagger UI CDN，动态获取当前访问的 URL
     Html = <<"<!DOCTYPE html>
 <html>
 <head>
@@ -113,11 +113,21 @@ swagger_ui(_Bindings, _Params) ->
     <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
     <script>
     window.onload = function() {
+        // 动态获取当前访问的协议、主机和端口
+        const currentUrl = window.location.protocol + '//' + window.location.host + '/kafka_bridge';
+        
         SwaggerUIBundle({
             url: '/kafka_bridge/swagger.json',
             dom_id: '#swagger-ui',
             presets: [SwaggerUIBundle.presets.apis],
-            layout: \"BaseLayout\"
+            layout: \"BaseLayout\",
+            // 动态设置 servers，使用当前访问的地址
+            spec: {
+                servers: [{
+                    url: currentUrl,
+                    description: \"当前访问地址\"
+                }]
+            }
         });
     };
     </script>
