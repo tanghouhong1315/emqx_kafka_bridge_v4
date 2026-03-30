@@ -64,7 +64,19 @@ PLUGINS_EOF
 RUN cat /emqx/lib-extra/plugins
 
 # 注册插件到 loaded_plugins.tmpl（让插件默认加载）
-RUN echo "{emqx_kafka_bridge_v4, true}." >> /emqx/data/loaded_plugins.tmpl
+# 直接覆盖文件，确保所有架构使用相同的配置
+RUN cat > /emqx/data/loaded_plugins.tmpl << 'EOF'
+{emqx_management, true}.
+{emqx_dashboard, true}.
+{emqx_retainer, true}.
+{emqx_recon, true}.
+{emqx_telemetry, true}.
+{emqx_rule_engine, true}.
+{emqx_kafka_bridge_v4, true}.
+EOF
+
+# 验证 loaded_plugins.tmpl 文件
+RUN echo "=== loaded_plugins.tmpl 内容 ===" && cat /emqx/data/loaded_plugins.tmpl
 
 # 设置环境变量，指定要编译的插件
 ENV EMQX_EXTRA_PLUGINS=emqx_kafka_bridge_v4
