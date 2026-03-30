@@ -83,7 +83,13 @@ stop() ->
 %% ===================================================================
 
 http_handlers() ->
-    [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
+    %% 静态文件路由（使用自定义 handler，避免 minirest 的 URL 转义问题）
+    StaticRoutes = [
+        {"/kafka_bridge/swagger-dist/swagger-ui-bundle.js", emqx_kafka_bridge_static, {<<"swagger-ui-bundle.js">>, <<"application/javascript">>}},
+        {"/kafka_bridge/swagger-dist/swagger-ui.css", emqx_kafka_bridge_static, {<<"swagger-ui.css">>, <<"text/css">>}},
+        {"/kafka_bridge/swagger-dist/swagger-ui-standalone-preset.js", emqx_kafka_bridge_static, {<<"swagger-ui-standalone-preset.js">>, <<"application/javascript">>}}
+    ],
+    StaticRoutes ++ [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
 
 %% ===================================================================
 %% Handler Functions
