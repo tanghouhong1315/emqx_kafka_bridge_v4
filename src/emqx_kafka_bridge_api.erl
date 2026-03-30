@@ -93,7 +93,7 @@ http_handlers() ->
 swagger(_Bindings, _Params) ->
     JsonBin = swagger_json(),
     %% 返回 {ok, Headers, Body} 格式，绕过 minirest 的 json_encode
-    {ok, [{<<"content-type">>, <<"application/json">>}], JsonBin}.
+    {ok, #{<<"content-type">> => <<"application/json">>}, JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
     %% 使用 Swagger UI CDN
@@ -124,7 +124,7 @@ swagger_ui(_Bindings, _Params) ->
 </body>
 </html>">>,
     %% 返回 {ok, Headers, Body} 格式，绕过 minirest 的 json_encode
-    {ok, [{<<"content-type">>, <<"text/html; charset=utf-8">>}], Html}.
+    {ok, #{<<"content-type">> => <<"text/html; charset=utf-8">>}, Html}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
