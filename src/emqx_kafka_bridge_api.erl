@@ -91,9 +91,9 @@ http_handlers() ->
 %% ===================================================================
 
 swagger(_Bindings, _Params) ->
-    {200, #{
-        <<"content-type">> => <<"application/json">>
-    }, swagger_json()}.
+    JsonBin = swagger_json(),
+    %% 使用 iolist 返回，确保 binary 不被转义
+    {200, [{<<"content-type">>, <<"application/json">>}], JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
     {200, #{
