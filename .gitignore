@@ -1,0 +1,41 @@
+# =============================================================================
+# EMQX Kafka Bridge v4 - Git Ignore
+# =============================================================================
+
+# Erlang/Elixir 构建产物
+_erl_build/
+_build/
+rebar3.crashdump
+*.beam
+*.app
+*.tar.gz
+
+# EMQX 源码（构建时会自动克隆）
+_build/emqx-src/
+
+# Docker 生成文件
+Dockerfile
+Dockerfile.*
+docker-compose.override.yml
+
+# 日志文件
+*.log
+log/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 备份文件
+*_backup/
+*.bak
+
+# 敏感信息
+*.secret
+*.key
+.env

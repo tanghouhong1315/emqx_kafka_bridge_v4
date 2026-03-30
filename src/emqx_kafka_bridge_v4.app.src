@@ -1,0 +1,22 @@
+{application, emqx_kafka_bridge_v4,
+ [{description, "EMQX Kafka Bridge Plugin v4.x"},
+  {vsn, "1.0.0"},
+  {modules, [
+    emqx_kafka_bridge_app,
+    emqx_kafka_bridge_sup,
+    emqx_kafka_bridge_hook,
+    emqx_kafka_bridge_api,
+    emqx_kafka_bridge_config,
+    emqx_kafka_bridge_store,
+    emqx_kafka_bridge_rule_cache,
+    emqx_kafka_bridge_producer,
+    emqx_kafka_bridge_metrics
+  ]},
+  {registered, [emqx_kafka_bridge_sup]},
+  {applications, [kernel, stdlib, brod, jiffy, cowboy, crypto, minirest]},
+  {mod, {emqx_kafka_bridge_app, []}},
+  {env, []},
+  {licenses, ["Apache-2.0"]},
+  {relup_deps, [emqx]},
+  {schema, "emqx_kafka_bridge_v4.schema"}
+ ]}.

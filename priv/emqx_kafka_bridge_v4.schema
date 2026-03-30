@@ -1,0 +1,62 @@
+%%-*- mode: erlang -*-
+%% emqx_kafka_bridge_v4 config mapping
+
+{mapping, "kafka.bridge.bootstrap_servers", "emqx_kafka_bridge_v4.kafka_bootstrap_hosts", [
+    {datatype, string},
+    {default, "127.0.0.1:9092"}
+]}.
+
+{mapping, "kafka.bridge.required_acks", "emqx_kafka_bridge_v4.kafka_required_acks", [
+    {datatype, integer},
+    {default, 1}
+]}.
+
+{mapping, "kafka.bridge.max_retries", "emqx_kafka_bridge_v4.kafka_max_retries", [
+    {datatype, integer},
+    {default, 3}
+]}.
+
+{mapping, "kafka.bridge.retry_backoff_ms", "emqx_kafka_bridge_v4.kafka_retry_backoff_ms", [
+    {datatype, integer},
+    {default, 500}
+]}.
+
+{mapping, "kafka.bridge.max_batch_bytes", "emqx_kafka_bridge_v4.kafka_max_batch_bytes", [
+    {datatype, integer},
+    {default, 1048576}
+]}.
+
+{mapping, "kafka.bridge.max_inflight", "emqx_kafka_bridge_v4.kafka_max_inflight", [
+    {datatype, integer},
+    {default, 10}
+]}.
+
+{mapping, "kafka.bridge.pool_size", "emqx_kafka_bridge_v4.producer_pool_size", [
+    {datatype, integer},
+    {default, 8}
+]}.
+
+{mapping, "kafka.bridge.batch_size", "emqx_kafka_bridge_v4.batch_size", [
+    {datatype, integer},
+    {default, 100}
+]}.
+
+{mapping, "kafka.bridge.batch_timeout_ms", "emqx_kafka_bridge_v4.batch_timeout_ms", [
+    {datatype, integer},
+    {default, 50}
+]}.
+
+{mapping, "kafka.bridge.reconnect_seconds", "emqx_kafka_bridge_v4.kafka_reconnect_cool_down_seconds", [
+    {datatype, integer},
+    {default, 10}
+]}.
+
+{mapping, "kafka.bridge.api_port", "emqx_kafka_bridge_v4.api_port", [
+    {datatype, integer},
+    {default, 8090}
+]}.
+
+{mapping, "kafka.bridge.rules_file", "emqx_kafka_bridge_v4.rules_file", [
+    {datatype, string},
+    {default, "forward_rules.json"}
+]}.

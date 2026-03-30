@@ -1,0 +1,167 @@
+# =============================================================================
+# EMQX Kafka Bridge v4 - 多阶段构建 Dockerfile
+# =============================================================================
+# 阶段 1: 编译阶段 - 使用本地预拉取的 emqx-builder 镜像
+# 阶段 2: 运行阶段 - 使用 Alpine 3.15
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 阶段 1: 编译阶段
+# -----------------------------------------------------------------------------
+# 使用本地预拉取的镜像（避免每次构建都访问网络）
+# 镜像已拉取：ghcr.nju.edu.cn/emqx/emqx-builder/4.4-5:24.1.5-3-alpine3.14
+# 本地 tag 为：emqx-builder:local
+# 如果上面镜像拉取失败，可以尝试直接使用镜像 ID
+# ARG BUILD_FROM=ghcr.nju.edu.cn/emqx/emqx-builder/4.4-5:24.1.5-3-alpine3.14
+ARG BUILD_FROM=ghcr.nju.edu.cn/emqx/emqx-builder/4.4-5:24.1.5-3-alpine3.14
+FROM ${BUILD_FROM} AS builder
+
+# 安装额外依赖（如果需要）
+RUN apk add --no-cache \
+    git \
+    curl \
+    gcc \
+    g++ \
+    make \
+    perl \
+    ncurses-dev \
+    openssl-dev \
+    coreutils \
+    bsd-compat-headers \
+    libc-dev \
+    libstdc++ \
+    bash \
+    jq
+
+# 配置 Git（增大缓冲区，禁用低速度检查）
+RUN git config --global http.postBuffer 524288000 && \
+    git config --global http.lowSpeedLimit 0 && \
+    git config --global http.lowSpeedTime 999999
+
+# 设置工作目录
+WORKDIR /emqx
+
+# 克隆 EMQX 源码（v4.4.19）
+RUN git clone --depth 1 --branch v4.4.19 https://github.com/emqx/emqx.git /emqx
+
+# 注册插件到 lib-extra/plugins 文件
+# 从 git 仓库拉取（推荐方式）
+# 每次代码更新后打新 tag，然后更新此处的 tag 版本
+RUN cat > /emqx/lib-extra/plugins << 'PLUGINS_EOF'
+{erlang_plugins,
+  [ {emqx_plugin_template, {git, "https://github.com/emqx/emqx-plugin-template", {tag, "4.3.0"}}},
+    {emqx_kafka_bridge_v4, {git, "https://gitee.com/talkedu/emqx_kafka_bridge_v4.git", {tag, "v1.0.0"}}}
+  ]
+}.
+
+{elixir_plugins,
+  [ {emqx_elixir_plugin, {git, "https://github.com/emqx/emqx-elixir-plugin.git", {branch, "3.0.0"}}}
+  ]
+}.
+PLUGINS_EOF
+
+# 验证 plugins 文件
+RUN cat /emqx/lib-extra/plugins
+
+# 注册插件到 loaded_plugins.tmpl（让插件默认加载）
+RUN echo "{emqx_kafka_bridge_v4, true}." >> /emqx/data/loaded_plugins.tmpl
+
+# 设置环境变量，指定要编译的插件
+ENV EMQX_EXTRA_PLUGINS=emqx_kafka_bridge_v4
+
+# 编译 EMQX + 插件
+# 彻底清理所有构建缓存，确保使用最新代码
+RUN cd /emqx && \
+    make dclean 2>/dev/null || true && \
+    rm -rf _build lib-extra/_build rebar.lock lib-extra/rebar.lock && \
+    rm -rf ~/.cache/rebar3 ~/.rebar3 && \
+    make
+
+# -----------------------------------------------------------------------------
+# 阶段 2: 运行阶段
+# -----------------------------------------------------------------------------
+# 使用 Alpine 3.15（3.14 已 EOL，软件源不可用）
+# 参考：https://github.com/emqx/emqx/blob/v4.4.19/deploy/docker/Dockerfile
+FROM alpine:3.15
+
+LABEL maintainer="tanghouhong"
+LABEL description="EMQX Kafka Bridge v4"
+LABEL emqx.version="4.4.19"
+LABEL erlang.otp="24.1.5-3"
+
+# 安装运行时依赖
+RUN apk add --no-cache \
+    curl \
+    bash \
+    libstdc++
+
+# 从 builder 阶段复制编译好的 EMQX
+COPY --from=builder /emqx/_build/emqx/rel/emqx /opt/emqx
+
+# 修改日志级别为 info（方便调试）
+RUN sed -i 's/log.level = warning/log.level = info/' /opt/emqx/etc/emqx.conf
+
+# 复制插件的 priv 和 etc 目录到临时位置
+# 这是 schema 文件和配置文件能被 EMQX 插件系统读取的关键！
+COPY priv/ /tmp/plugin_priv/
+COPY etc/emqx_kafka_bridge.conf /tmp/plugin_emqx_kafka_bridge.conf
+
+RUN PLUGIN_DIR=$(find /opt/emqx/lib -maxdepth 1 -type d -name "emqx_kafka_bridge_v4*" | head -1) && \
+    if [ -n "$PLUGIN_DIR" ]; then \
+      echo "=== 复制插件 priv 目录 ==="; \
+      echo "插件目录：$PLUGIN_DIR"; \
+      mkdir -p "$PLUGIN_DIR/priv/"; \
+      cp /tmp/plugin_priv/* "$PLUGIN_DIR/priv/"; \
+      echo "priv 目录内容:"; \
+      ls -la "$PLUGIN_DIR/priv/"; \
+    else \
+      echo "错误：未找到插件目录"; \
+      exit 1; \
+    fi
+
+# 复制配置文件到插件的 etc 目录（EMQX 期望的位置）
+RUN PLUGIN_DIR=$(find /opt/emqx/lib -maxdepth 1 -type d -name "emqx_kafka_bridge_v4*" | head -1) && \
+    if [ -n "$PLUGIN_DIR" ]; then \
+      echo "=== 复制插件配置文件 ==="; \
+      mkdir -p "$PLUGIN_DIR/etc/"; \
+      cp /tmp/plugin_emqx_kafka_bridge.conf "$PLUGIN_DIR/etc/emqx_kafka_bridge_v4.conf"; \
+      echo "配置文件已复制到 $PLUGIN_DIR/etc/emqx_kafka_bridge_v4.conf"; \
+    fi
+
+# 复制转发规则文件到 EMQX 配置目录
+COPY etc/forward_rules.json /opt/emqx/etc/
+
+# 创建 emqx 用户和组（UID/GID: 1000）
+# 参考：https://github.com/emqx/emqx/blob/v4.4.19/deploy/docker/Dockerfile
+RUN adduser -D -u 1000 emqx && \
+    echo "emqx ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
+
+# 设置权限（官方方式：chgrp + chmod + chown）
+RUN chgrp -Rf emqx /opt/emqx && \
+    chmod -Rf g+w /opt/emqx && \
+    chown -Rf emqx /opt/emqx
+
+# 创建符号链接到 /usr/local/bin
+RUN ln -s /opt/emqx/bin/* /usr/local/bin/
+
+# 设置环境变量
+ENV PATH="/opt/emqx/bin:$PATH"
+
+# 暴露端口
+EXPOSE 1883 8083 8084 8883 18083 8081
+
+# 持久化数据卷（Mnesia 数据库和规则备份）
+VOLUME ["/opt/emqx/data"]
+
+# 工作目录
+WORKDIR /opt/emqx
+
+# 切换到 emqx 用户（非 root 运行，更安全）
+USER emqx
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:18083/status || exit 1
+
+# 启动命令
+CMD ["/opt/emqx/bin/emqx", "foreground"]

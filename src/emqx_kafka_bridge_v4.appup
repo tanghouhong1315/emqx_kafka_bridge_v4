@@ -1,0 +1,5 @@
+{["1.0.0"],
+ [{"1.0.0",
+   [{add_module,emqx_kafka_bridge_api},
+    {add_module,emqx_kafka_bridge_app},
+    {add_module,emqx_kafka_bridge_sup}]}]}.

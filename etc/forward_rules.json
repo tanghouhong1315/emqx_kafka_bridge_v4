@@ -1,0 +1,22 @@
+[
+  {
+    "mqtt_topic": "#",
+    "kafka_topic": "mqtt_messages",
+    "qos": null,
+    "payload_format": "json",
+    "payload_template": null,
+    "kafka_key": "topic",
+    "enabled": false,
+    "description": "Forward all MQTT messages to Kafka (disabled by default)"
+  },
+  {
+    "mqtt_topic": "sensor/+/data",
+    "kafka_topic": "sensor_data",
+    "qos": null,
+    "payload_format": "json",
+    "payload_template": null,
+    "kafka_key": "client_id",
+    "enabled": true,
+    "description": "Forward sensor data to Kafka"
+  }
+]

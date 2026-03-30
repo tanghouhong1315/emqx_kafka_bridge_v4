@@ -1,0 +1,353 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "EMQX Kafka Bridge API",
+    "description": "EMQX Kafka Bridge REST API - MQTT 消息转发到 Kafka 的规则管理",
+    "version": "1.0.0",
+    "contact": {
+      "name": "EMQX Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8090/kafka_bridge",
+      "description": "本地开发环境"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "健康检查",
+        "description": "检查 API 服务是否正常运行",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "服务正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer", "example": 0 },
+                    "message": { "type": "string", "example": "success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": { "type": "string", "example": "running" },
+                        "timestamp": { "type": "integer", "example": 1774506639778 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rules": {
+      "get": {
+        "summary": "获取规则列表",
+        "description": "分页查询所有转发规则",
+        "operationId": "list_rules",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "query",
+            "description": "按 MQTT 主题关键字过滤",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "每页数量",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "integer" },
+                    "message": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                        "page": { "type": "integer" },
+                        "limit": { "type": "integer" },
+                        "rules": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Rule" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rule/get": {
+      "get": {
+        "summary": "获取单个规则",
+        "description": "根据 MQTT 主题获取规则详情",
+        "operationId": "get_rule",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "query",
+            "description": "MQTT 主题（支持 + wildcard）",
+            "required": true,
+            "schema": { "type": "string", "example": "sensor/+/data" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Rule" }
+              }
+            }
+          },
+          "404": {
+            "description": "规则不存在"
+          }
+        }
+      }
+    },
+    "/rule/add": {
+      "post": {
+        "summary": "添加规则",
+        "description": "创建新的 MQTT 到 Kafka 转发规则",
+        "operationId": "add_rule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["mqtt_topic", "kafka_topic"],
+                "properties": {
+                  "mqtt_topic": {
+                    "type": "string",
+                    "description": "MQTT 主题，支持 + 和 # 通配符",
+                    "example": "sensor/+/data"
+                  },
+                  "kafka_topic": {
+                    "type": "string",
+                    "description": "Kafka 目标主题",
+                    "example": "sensor_data"
+                  },
+                  "qos": {
+                    "type": "integer",
+                    "description": "QoS 等级 (0, 1, 2)，默认 1",
+                    "example": 1,
+                    "enum": [0, 1, 2]
+                  },
+                  "payload_format": {
+                    "type": "string",
+                    "description": "Payload 格式",
+                    "default": "json",
+                    "enum": ["raw", "json", "template"]
+                  },
+                  "kafka_key": {
+                    "type": "string",
+                    "description": "Kafka 消息 key",
+                    "default": "topic",
+                    "enum": ["client_id", "username", "topic", "none"]
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "是否启用",
+                    "default": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "规则描述"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Rule" }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "409": {
+            "description": "规则已存在"
+          }
+        }
+      }
+    },
+    "/rule/update": {
+      "post": {
+        "summary": "更新规则",
+        "description": "更新已存在的转发规则（通过 mqtt_topic 定位）",
+        "operationId": "update_rule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["mqtt_topic"],
+                "properties": {
+                  "mqtt_topic": {
+                    "type": "string",
+                    "description": "MQTT 主题（主键，用于定位规则）",
+                    "example": "sensor/+/data"
+                  },
+                  "kafka_topic": {
+                    "type": "string",
+                    "description": "Kafka 目标主题"
+                  },
+                  "qos": {
+                    "type": "integer",
+                    "description": "QoS 等级"
+                  },
+                  "payload_format": {
+                    "type": "string",
+                    "enum": ["raw", "json", "template"]
+                  },
+                  "kafka_key": {
+                    "type": "string",
+                    "enum": ["client_id", "username", "topic", "none"]
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Rule" }
+              }
+            }
+          },
+          "404": {
+            "description": "规则不存在"
+          }
+        }
+      }
+    },
+    "/rule/delete": {
+      "post": {
+        "summary": "删除规则",
+        "description": "根据 MQTT 主题删除规则",
+        "operationId": "delete_rule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["mqtt_topic"],
+                "properties": {
+                  "mqtt_topic": {
+                    "type": "string",
+                    "description": "要删除的 MQTT 主题",
+                    "example": "sensor/+/data"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "删除成功"
+          },
+          "404": {
+            "description": "规则不存在"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Rule": {
+        "type": "object",
+        "properties": {
+          "mqtt_topic": {
+            "type": "string",
+            "description": "MQTT 主题",
+            "example": "sensor/+/data"
+          },
+          "kafka_topic": {
+            "type": "string",
+            "description": "Kafka 目标主题",
+            "example": "sensor_data"
+          },
+          "qos": {
+            "type": "integer",
+            "description": "QoS 等级",
+            "example": 1
+          },
+          "payload_format": {
+            "type": "string",
+            "description": "Payload 格式",
+            "example": "json"
+          },
+          "kafka_key": {
+            "type": "string",
+            "description": "Kafka 消息 key",
+            "example": "client_id"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "是否启用",
+            "example": true
+          },
+          "description": {
+            "type": "string",
+            "description": "规则描述",
+            "example": "Forward sensor data to Kafka"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "创建时间",
+            "example": "2026-03-26 16:30:07"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "更新时间",
+            "example": "2026-03-26 16:30:07"
+          }
+        }
+      }
+    }
+  }
+}

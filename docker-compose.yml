@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  emqx-kafka-bridge:
+    image: tanghouhong/emqx_kafka_bridge_v4:1.0.0-emqx4.4.19
+    container_name: emqx-kafka-bridge
+    restart: always
+    ports:
+      # MQTT
+      - "1883:1883"
+      # WebSocket
+      - "8083:8083"
+      # MQTT/SSL
+      - "8883:8883"
+      # Dashboard
+      - "18083:18083"
+      # Management API
+      - "8081:8081"
+      # Kafka Bridge API
+      - "8090:8090"
+    environment:
+      # Kafka 集群地址
+      - KAFKA_BOOTSTRAP_SERVERS=192.168.19.71:10003
+      # API 端口
+      - KAFKA_BRIDGE_API_PORT=8090
+    volumes:
+      # 持久化数据（重要！容器重启后数据不丢失）
+      - emqx-data:/opt/emqx/data
+      # 配置文件（可选）
+      - ./etc/emqx_kafka_bridge.conf:/opt/emqx/etc/plugins/emqx_kafka_bridge_v4.conf:ro
+      # 初始规则文件（可选）
+      - ./etc/forward_rules.json:/opt/emqx/etc/forward_rules.json:ro
+    networks:
+      - emqx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18083/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Kafka 服务（示例，实际使用外部 Kafka）
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: always
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9092,PLAINTEXT://kafka:29092
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093,PLAINTEXT://0.0.0.0:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - emqx-network
+
+volumes:
+  # EMQX 数据持久化（规则、Mnesia 数据库）
+  emqx-data:
+    driver: local
+  # Kafka 数据持久化
+  kafka-data:
+    driver: local
+
+networks:
+  emqx-network:
+    driver: bridge
