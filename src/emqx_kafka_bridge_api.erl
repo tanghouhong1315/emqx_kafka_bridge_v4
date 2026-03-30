@@ -92,14 +92,39 @@ http_handlers() ->
 
 swagger(_Bindings, _Params) ->
     JsonBin = swagger_json(),
-    %% 解析成 map，让 minirest 自己序列化
-    JsonMap = jiffy:decode(JsonBin, [return_maps]),
-    {200, #{<<"content-type">> => <<"application/json">>}, JsonMap}.
+    %% 返回 {ok, Headers, Body} 格式，绕过 minirest 的 json_encode
+    {ok, [{<<"content-type">>, <<"application/json">>}], JsonBin}.
 
 swagger_ui(_Bindings, _Params) ->
-    HtmlBin = swagger_ui_html(),
-    %% 使用 text 格式返回，minirest 不会转义 text
-    {200, text, HtmlBin}.
+    %% 使用 Swagger UI CDN
+    Html = <<"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=\"UTF-8\">
+    <title>EMQX Kafka Bridge API 文档</title>
+    <link rel=\"stylesheet\" type=\"text/css\" href=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui.css\">
+    <style>
+        body { margin: 0; padding: 0; }
+        #swagger-ui { max-width: 1400px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <div id=\"swagger-ui\"></div>
+    <script src=\"https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js\"></script>
+    <script>
+    window.onload = function() {
+        SwaggerUIBundle({
+            url: '/kafka_bridge/swagger.json',
+            dom_id: '#swagger-ui',
+            presets: [SwaggerUIBundle.presets.apis],
+            layout: \"BaseLayout\"
+        });
+    };
+    </script>
+</body>
+</html>">>,
+    %% 返回 {ok, Headers, Body} 格式，绕过 minirest 的 json_encode
+    {ok, [{<<"content-type">>, <<"text/html; charset=utf-8">>}], Html}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
