@@ -19,18 +19,14 @@
     <script>
         window.onload = function() {
             const ui = SwaggerUIBundle({
-                url: "./swagger.json",
+                url: "/kafka_bridge/swagger.json",
                 dom_id: "#swagger-ui",
                 deepLinking: true,
                 presets: [
                     SwaggerUIBundle.presets.apis,
                     SwaggerUIBundle.SwaggerUIStandalonePreset
                 ],
-                layout: "StandaloneLayout",
-                swaggerUiConsts = {
-                    dom_id: "swagger-ui",
-                    url: "./swagger.json"
-                }
+                layout: "StandaloneLayout"
             });
             window.ui = ui;
         };

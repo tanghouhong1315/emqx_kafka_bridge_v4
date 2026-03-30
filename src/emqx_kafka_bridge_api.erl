@@ -56,6 +56,11 @@
 -define(API_PORT, 8090).
 -define(LISTENER, kafka_bridge_http).
 
+%% 获取 priv 目录
+priv_dir(App, SubDir) ->
+    PrivDir = code:priv_dir(App),
+    filename:join(PrivDir, SubDir).
+
 %% ===================================================================
 %% 启动/停止
 %% ===================================================================
@@ -83,7 +88,15 @@ stop() ->
 %% ===================================================================
 
 http_handlers() ->
-    [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
+    %% 静态文件路由（使用 cowboy_static，避免 minirest 对 HTML 内容做转义处理）
+    PrivDir = code:priv_dir(emqx_kafka_bridge_v4),
+    [
+        {"/kafka_bridge/api_docs/[...]", cowboy_static, {dir, PrivDir, [
+            {mimetypes, cow_mimetypes},
+            {index_files, ["swagger-ui.html"]}
+        ]}},
+        {"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}
+    ].
 
 %% ===================================================================
 %% Handler Functions
