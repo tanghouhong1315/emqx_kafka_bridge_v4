@@ -104,9 +104,10 @@ swagger(_Bindings, _Params) ->
     }, swagger_json()}.
 
 swagger_ui(_Bindings, _Params) ->
-    {200, #{
-        <<"content-type">> => <<"text/html; charset=utf-8">>
-    }, swagger_ui_html()}.
+    %% 使用 redirect 到在线 Swagger Editor
+    {302, #{
+        <<"location">> => <<"https://editor.swagger.io/?url=http://192.168.18.78:8090/kafka_bridge/swagger.json">>
+    }, <<"Redirecting to Swagger Editor...">>}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
