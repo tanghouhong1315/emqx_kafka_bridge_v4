@@ -2,9 +2,6 @@
 
 -include("emqx_kafka_bridge.hrl").
 
-%% 静态文件 handler
--export([serve_static/2]).
-
 -rest_api(#{name => swagger,
             method => 'GET',
             path => "/swagger.json",
@@ -86,12 +83,7 @@ stop() ->
 %% ===================================================================
 
 http_handlers() ->
-    %% 添加静态文件路由
-    StaticHandler = {emqx_kafka_bridge_api, serve_static, ["swagger-dist"]},
-    [
-        {"/kafka_bridge/swagger-dist/[...]", StaticHandler, []},
-        {"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}
-    ].
+    [{"/kafka_bridge", minirest:handler(#{apps => [emqx_kafka_bridge_v4]}), []}].
 
 %% ===================================================================
 %% Handler Functions
@@ -104,10 +96,9 @@ swagger(_Bindings, _Params) ->
     }, swagger_json()}.
 
 swagger_ui(_Bindings, _Params) ->
-    %% 使用 redirect 到在线 Swagger Editor
-    {302, #{
-        <<"location">> => <<"https://editor.swagger.io/?url=http://192.168.18.78:8090/kafka_bridge/swagger.json">>
-    }, <<"Redirecting to Swagger Editor...">>}.
+    {200, #{
+        <<"content-type">> => <<"text/html; charset=utf-8">>
+    }, swagger_ui_html()}.
 
 swagger_json() ->
     {ok, App} = application:get_application(?MODULE),
@@ -119,13 +110,108 @@ swagger_json() ->
     end.
 
 swagger_ui_html() ->
-    {ok, App} = application:get_application(?MODULE),
-    PrivDir = code:priv_dir(App),
-    File = filename:join(PrivDir, "swagger-ui.html"),
-    case file:read_file(File) of
-        {ok, Bin} -> Bin;
-        _ -> <<"<html><body>Swagger UI not found</body></html>">>
-    end.
+    %% 简单的 API 文档页面 - 从 swagger.json 加载并渲染
+    Html = <<"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=\"UTF-8\">
+    <title>EMQX Kafka Bridge API 文档</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .api-list { background: white; border-radius: 8px; padding: 20px; }
+        .api-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .api-item:last-child { border-bottom: none; }
+        .method { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; margin-right: 10px; }
+        .GET { background: #61affe; color: white; }
+        .POST { background: #49cc90; color: white; }
+        .PUT { background: #fca130; color: white; }
+        .DELETE { background: #f93e3e; color: white; }
+        .path { font-size: 16px; color: #333; font-family: monospace; }
+        .desc { color: #666; margin-top: 5px; }
+        .params { margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px; font-size: 14px; }
+        .params table { width: 100%; border-collapse: collapse; }
+        .params td { padding: 5px; }
+        .params td:first-child { font-weight: bold; width: 150px; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error { color: red; padding: 20px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>EMQX Kafka Bridge API 文档</h1>
+    <div id=\"content\" class=\"api-list\">
+        <div class=\"loading\">加载中...</div>
+    </div>
+    <script>
+    async function loadApiDocs() {
+        try {
+            const response = await fetch('/kafka_bridge/swagger.json');
+            const spec = await response.json();
+            
+            let html = '';
+            const paths = spec.paths || {};
+            
+            for (const [path, methods] of Object.entries(paths)) {
+                for (const [method, details] of Object.entries(methods)) {
+                    const methodClass = method.toUpperCase();
+                    const summary = details.summary || '';
+                    const description = details.description || '';
+                    const operationId = details.operationId || '';
+                    
+                    html += '<div class=\"api-item\">';
+                    html += '<span class=\"method ' + methodClass + '\">' + methodClass + '</span>';
+                    html += '<span class=\"path\">' + path + '</span>';
+                    if (summary) html += '<div class=\"desc\">' + summary + '</div>';
+                    if (description) html += '<div class=\"desc\">' + description + '</div>';
+                    
+                    // Request Body
+                    if (details.requestBody) {
+                        const content = details.requestBody.content;
+                        if (content && content['application/json']) {
+                            const schema = content['application/json'].schema;
+                            html += '<div class=\"params\"><strong>Request Body:</strong><pre>' + JSON.stringify(schema, null, 2) + '</pre></div>';
+                        }
+                    }
+                    
+                    // Parameters
+                    if (details.parameters && details.parameters.length > 0) {
+                        html += '<div class=\"params\"><strong>Parameters:</strong><table>';
+                        for (const param of details.parameters) {
+                            const required = param.required ? ' (必填)' : '';
+                            html += '<tr><td>' + param.name + required + '</td><td>' + (param.description || '') + ' - ' + (param.in || '') + '</td></tr>';
+                        }
+                        html += '</table></div>';
+                    }
+                    
+                    // Responses
+                    if (details.responses) {
+                        html += '<div class=\"params\"><strong>Responses:</strong><table>';
+                        for (const [code, resp] of Object.entries(details.responses)) {
+                            html += '<tr><td>' + code + '</td><td>' + (resp.description || '') + '</td></tr>';
+                        }
+                        html += '</table></div>';
+                    }
+                    
+                    html += '</div>';
+                }
+            }
+            
+            if (!html) {
+                html = '<div class=\"error\">未找到 API 端点</div>';
+            }
+            
+            document.getElementById('content').innerHTML = html;
+        } catch (error) {
+            document.getElementById('content').innerHTML = '<div class=\"error\">加载失败: ' + error.message + '</div>';
+        }
+    }
+    loadApiDocs();
+    </script>
+</body>
+</html>">>,
+    Html.
 
 health(_Bindings, _Params) ->
     ok_response(#{
@@ -347,31 +433,3 @@ error_response(Code, Message) when is_integer(Code) ->
         message => MsgBin,
         data => #{}
     }}.
-
-%% ===================================================================
-%% 静态文件服务
-%% ===================================================================
-serve_static(Req, [SubDir]) ->
-    Path = cowboy_req:path(Req),
-    %% 去掉前缀 /kafka_bridge/swagger-dist/
-    <<"/kafka_bridge/swagger-dist/", Rest/binary>> = Path,
-    PrivDir = code:priv_dir(emqx_kafka_bridge_v4),
-    FilePath = filename:join([PrivDir, SubDir, binary_to_list(Rest)]),
-    case file:read_file(FilePath) of
-        {ok, Bin} ->
-            ContentType = content_type(filename:extension(FilePath)),
-            {200, #{<<"content-type">> => ContentType}, Bin};
-        {error, _} ->
-            {404, #{<<"content-type">> => <<"text/plain">>}, <<"Not found">>}
-    end.
-
-content_type(Ext) ->
-    case Ext of
-        <<".js">> -> <<"application/javascript">>;
-        <<".css">> -> <<"text/css">>;
-        <<".html">> -> <<"text/html">>;
-        <<".json">> -> <<"application/json">>;
-        <<".png">> -> <<"image/png">>;
-        <<".jpg">> -> <<"image/jpeg">>;
-        _ -> <<"application/octet-stream">>
-    end.
