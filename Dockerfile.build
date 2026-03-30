@@ -64,7 +64,7 @@ PLUGINS_EOF
 RUN cat /emqx/lib-extra/plugins
 
 # 注册插件到 loaded_plugins.tmpl（让插件默认加载）
-# 直接覆盖文件，确保所有架构使用相同的配置
+# 使用标准 Erlang 元组格式，AMD64 和 ARM64 都支持
 RUN cat > /emqx/data/loaded_plugins.tmpl << 'EOF'
 {emqx_management, true}.
 {emqx_dashboard, true}.
