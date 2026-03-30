@@ -91,9 +91,10 @@ http_handlers() ->
 %% ===================================================================
 
 swagger(_Bindings, _Params) ->
-    {200, #{
-        <<"content-type">> => <<"application/json">>
-    }, swagger_json()}.
+    JsonBin = swagger_json(),
+    %% 解析成 map，让 minirest 自己序列化
+    JsonMap = jiffy:decode(JsonBin, [return_maps]),
+    {200, #{<<"content-type">> => <<"application/json">>}, JsonMap}.
 
 swagger_ui(_Bindings, _Params) ->
     {200, #{
